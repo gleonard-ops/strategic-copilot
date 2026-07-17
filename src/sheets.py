@@ -15,7 +15,7 @@ COMPANIES_TAB  = 'Config - Companies'
 PROFILE_TAB    = 'Config - Profile'
 
 RESULTS_HEADERS = [
-    'Job Title', 'Company', 'Job URL', 'Source Lane', 'Date Posted', 'Days Since Posted',
+    'Job Title', 'Company', 'Location', 'Job URL', 'Source Lane', 'Date Posted', 'Days Since Posted',
     'Fit Score', 'Abstract Fit Flag', 'Scope Flag', 'Comp Signal',
     'Corporate Bottleneck', 'Strategic Thesis', 'Status',
 ]
@@ -94,7 +94,15 @@ def append_results(client, spreadsheet_id: str, jobs: list):
     if not jobs:
         return
     ws = _ws(client, spreadsheet_id, RESULTS_TAB)
-    rows = [[str(job.get(h, '')) for h in RESULTS_HEADERS] for job in jobs]
+    rows = []
+    for job in jobs:
+        row = []
+        for h in RESULTS_HEADERS:
+            if h == 'Location':
+                row.append(str(job.get('location_raw', '')))
+            else:
+                row.append(str(job.get(h, '')))
+        rows.append(row)
     ws.append_rows(rows, value_input_option='USER_ENTERED')
 
 
