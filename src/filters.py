@@ -78,8 +78,6 @@ def _location_ok(loc: str, mode: str) -> bool:
         return 'remote' in loc
 
     if mode == 'us only':
-        if 'remote' in loc:
-            return True
         return not any(k in loc for k in _NON_US)
 
     # "any" or anything else — no filtering
