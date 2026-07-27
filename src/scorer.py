@@ -55,21 +55,21 @@ NO: Anything else — adjacent function, below target level, or mixed signals.
 
 COMPENSATION:
 {comp_line}
+Read the job description carefully for any stated salary, base pay, or OTE figures before deciding.
 
-Output ONLY this JSON, nothing else:
+Output ONLY this JSON, nothing else, with real values substituted for every field below:
 {{
   "job_title": "exact title from posting",
   "company": "company name",
   "job_url": "{job['job_url']}",
   "date_posted": "{job['date_posted']}",
-  "fit_score": 5,
-  "abstract_fit_flag": "YES",
-  "scope_flag": "MATCH",
-  "comp_signal": "NOT_LISTED",
+  "fit_score": "<integer 1-10>",
+  "abstract_fit_flag": "<YES or NO>",
+  "scope_flag": "<MATCH, BELOW, or UNCLEAR>",
+  "comp_signal": "<IN_RANGE, BELOW_RANGE, or NOT_LISTED>",
   "inferred_corporate_bottleneck": "one sentence: what business pain is this role solving",
   "strategic_alignment_thesis": "two sentences: why candidate is or is not a strong fit"
 }}"""
-
 
 def _parse(text: str, job_url: str) -> dict:
     match = re.search(r'\{[\s\S]*\}', text)
