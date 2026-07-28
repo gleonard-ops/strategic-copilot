@@ -1,21 +1,62 @@
 from datetime import datetime, timedelta
+import re
 
-# Known non-US location keywords — used when Location = "US only"
-_NON_US = [
-    'united kingdom', 'london', 'england', 'scotland', 'ireland', 'edinburgh', 'manchester',
-    'germany', 'berlin', 'munich', 'frankfurt', 'hamburg',
-    'france', 'paris', 'lyon',
-    'netherlands', 'amsterdam', 'sweden', 'stockholm',
-    'spain', 'madrid', 'barcelona', 'italy', 'milan', 'rome',
-    'switzerland', 'zurich', 'geneva',
-    'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'hyderabad', 'pune', 'chennai', 'gurgaon',
-    'singapore', 'hong kong', 'australia', 'sydney', 'melbourne',
-    'japan', 'tokyo', 'china', 'beijing', 'shanghai',
-    'canada', 'toronto', 'vancouver', 'montreal',
-    'israel', 'tel aviv', 'poland', 'warsaw', 'krakow',
-    'brazil', 'sao paulo', 'mexico city',
-    'emea', 'apac', 'latam', 'europe', 'asia pacific', 'asia-pacific', ', uk', '- uk',
+# US state names and abbreviations (used for allow-list matching in "us only" mode)
+_US_STATES_FULL = [
+    'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut',
+    'delaware', 'florida', 'georgia', 'hawaii', 'idaho', 'illinois', 'indiana', 'iowa',
+    'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan',
+    'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada',
+    'new hampshire', 'new jersey', 'new mexico', 'new york', 'north carolina',
+    'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 'rhode island',
+    'south carolina', 'south dakota', 'tennessee', 'texas', 'utah', 'vermont',
+    'virginia', 'washington', 'west virginia', 'wisconsin', 'wyoming',
+    'district of columbia',
 ]
+
+_US_STATES_ABBR = [
+    'al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il', 'in',
+    'ia', 'ks', 'ky', 'la', 'me', 'md', 'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv',
+    'nh', 'nj', 'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc', 'sd', 'tn',
+    'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy', 'dc',
+]
+
+_US_COUNTRY_TERMS = [
+    'united states', 'usa', 'u.s.a', 'u.s.', ' us,', ' us -', '- us', ', us',
+]
+
+
+def _location_ok(loc: str, mode: str) -> bool:
+    if not loc:
+        return True
+    loc_lower = loc.strip().lower()
+
+    if mode == 'remote only':
+        return 'remote' in loc_lower
+
+    if mode == 'us only':
+        # Full state names and country terms — safe as plain substring matches
+        if any(state in loc_lower for state in _US_STATES_FULL):
+            return True
+        if any(term in loc_lower for term in _US_COUNTRY_TERMS):
+            return True
+
+        # Two-letter abbreviations need word-boundary matching so "CA" doesn't
+        # match inside unrelated words like "Canada"
+        for abbr in _US_STATES_ABBR:
+            if re.search(rf'\b{abbr}\b', loc_lower):
+                return True
+
+        # Bare "remote" with no location detail at all — ambiguous, allow it
+        # rather than silently drop postings that never named a country
+        if loc_lower.strip() == 'remote':
+            return True
+
+        return False
+
+    # "any" or anything else — no filtering
+    return True
+
 
 # Fallback defaults used when profile fields are blank
 _DEFAULT_SENIORITY = [
@@ -68,20 +109,6 @@ def is_too_old(job: dict, days: int = 30) -> bool:
     except ValueError:
         return False
 
-
-def _location_ok(loc: str, mode: str) -> bool:
-    if not loc:
-        return True
-    loc = loc.strip().lower()
-
-    if mode == 'remote only':
-        return 'remote' in loc
-
-    if mode == 'us only':
-        return not any(k in loc for k in _NON_US)
-
-    # "any" or anything else — no filtering
-    return True
 
 
 def passes_title_filter(job: dict, profile: dict = None) -> bool:
