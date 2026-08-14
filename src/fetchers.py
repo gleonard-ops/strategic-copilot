@@ -98,23 +98,22 @@ def fetch_gem(handle: str, company_name: str) -> list:
 
 
 def fetch_workday(handle: str, company_name: str, seniority_keywords: list = None) -> list:
-    # handle format: "{subdomain}.wd{n}/{board}"  e.g. "crowdstrike.wd5/crowdstrikecareers"
     if '/' not in handle:
         print(f'    Workday handle must be "subdomain.wdN/board", got: {handle}')
         return []
 
     tenant_domain, board = handle.split('/', 1)
-    company_slug = tenant_domain.split('.')[0]  # "crowdstrike.wd5" → "crowdstrike"
+    company_slug = tenant_domain.split('.')[0]
     base = f'https://{tenant_domain}.myworkdayjobs.com'
     api  = f'{base}/wday/cxs/{company_slug}/{board}'
 
-    # Build pre-filter search string from profile seniority keywords
     _default = ['VP', 'Director', 'Head of', 'Vice President', 'Senior Director']
     terms = seniority_keywords or _default
     search = ' OR '.join(f'"{t}"' if ' ' in t else t for t in terms)
 
     listings = []
     offset, limit = 0, 20
+    first_page = True
     while True:
         try:
             resp = requests.post(
@@ -123,8 +122,13 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
                 headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'},
                 timeout=30,
             )
+            if first_page:
+                print(f'    [{company_name}] HTTP {resp.status_code}, searchText="{search}"')
             resp.raise_for_status()
             data = resp.json()
+            if first_page:
+                print(f'    [{company_name}] total={data.get("total")}, jobPostings_len={len(data.get("jobPostings", []))}')
+                first_page = False
         except Exception as e:
             print(f'    Workday listing error for {company_name}: {e}')
             break
@@ -135,9 +139,24 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
         listings.extend(batch)
         total = data.get('total', 0)
         offset += limit
-        if offset >= total or offset >= 200:  # cap at 200 pre-filtered results
+        if offset >= total or offset >= 200:
             break
         time.sleep(0.3)
+
+    # DIAGNOSTIC: if zero results, retry with no search filter to test the OR-syntax theory
+    if not listings:
+        try:
+            test_resp = requests.post(
+                f'{api}/jobs',
+                json={'limit': 20, 'offset': 0, 'searchText': '', 'appliedFacets': {}},
+                headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'},
+                timeout=30,
+            )
+            test_data = test_resp.json()
+            print(f'    [{company_name}] DIAGNOSTIC empty-search total={test_data.get("total")} — '
+                  f'if >0, the OR searchText syntax is the problem')
+        except Exception as e:
+            print(f'    [{company_name}] DIAGNOSTIC request failed: {e}')
 
     jobs = []
     for posting in listings:
@@ -145,11 +164,7 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
         if not ext_path:
             continue
         try:
-            detail_resp = requests.get(
-                f'{api}{ext_path}',
-                headers={'User-Agent': 'Mozilla/5.0'},
-                timeout=30,
-            )
+            detail_resp = requests.get(f'{api}{ext_path}', headers={'User-Agent': 'Mozilla/5.0'}, timeout=30)
             detail_resp.raise_for_status()
             info = detail_resp.json().get('jobPostingInfo', {})
         except Exception:
