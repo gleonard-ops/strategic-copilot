@@ -139,17 +139,17 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
             print(f'    Workday handle must be "subdomain.wdN/board", got: {handle}')
             return []
 
-    tenant_domain, board = handle.split('/', 1)
-    company_slug = tenant_domain.split('.')[0]
-    base = f'https://{tenant_domain}.myworkdayjobs.com'
-    api  = f'{base}/wday/cxs/{company_slug}/{board}'
+            tenant_domain, board = handle.split('/', 1)
+            company_slug = tenant_domain.split('.')[0]
+            base = f'https://{tenant_domain}.myworkdayjobs.com'
+            api  = f'{base}/wday/cxs/{company_slug}/{board}'
 
-    _default = ['VP', 'Director', 'Head of', 'Vice President', 'Senior Director']
-    terms = [t.lower() for t in (seniority_keywords or _default)]
+            _default = ['VP', 'Director', 'Head of', 'Vice President', 'Senior Director']
+            terms = [t.lower() for t in (seniority_keywords or _default)]
 
-    listings = []
-    offset, limit = 0, 20
-    dumped_sample = False
+            listings = []
+            offset, limit = 0, 20
+            dumped_sample = False
     while True:
         try:
             resp = requests.post(
