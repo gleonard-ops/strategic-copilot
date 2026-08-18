@@ -134,6 +134,87 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
         if not batch:
             break
         listings.extend(batch)
+        def fetch_workday(handle: str, company_name: str, seniority_keywords: list = None) -> list:
+    if '/' not in handle:
+        print(f'    Workday handle must be "subdomain.wdN/board", got: {handle}')
+        return []
+
+    tenant_domain, board = handle.split('/', 1)
+    company_slug = tenant_domain.split('.')[0]
+    base = f'https://{tenant_domain}.myworkdayjobs.com'
+    api  = f'{base}/wday/cxs/{company_slug}/{board}'
+
+    _default = ['VP', 'Director', 'Head of', 'Vice President', 'Senior Director']
+    terms = [t.lower() for t in (seniority_keywords or _default)]
+
+    listings = []
+    offset, limit = 0, 20
+    dumped_sample = False
+    while True:
+        try:
+            resp = requests.post(
+                f'{api}/jobs',
+                json={'limit': limit, 'offset': offset, 'searchText': '', 'appliedFacets': {}},
+                headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f'    Workday listing error for {company_name}: {e}')
+            break
+
+        batch = data.get('jobPostings', [])
+        if not batch:
+            break
+
+        # DIAGNOSTIC: dump full shape of the first posting once per company
+        if not dumped_sample:
+            import json
+            print(f'    [{company_name}] SAMPLE POSTING KEYS: {list(batch[0].keys())}')
+            print(f'    [{company_name}] SAMPLE POSTING FULL: {json.dumps(batch[0])[:2000]}')
+            dumped_sample = True
+
+        listings.extend(batch)
+        total = data.get('total', 0)
+        offset += limit
+        if offset >= total or offset >= 400:
+            break
+        time.sleep(0.3)
+
+    filtered = [
+        p for p in listings
+        if any(term in (p.get('title') or '').lower() for term in terms)
+    ]
+
+    jobs = []
+    for posting in filtered:
+        ext_path = posting.get('externalPath', '')
+        if not ext_path:
+            continue
+        try:
+            detail_resp = requests.get(
+                f'{api}{ext_path}',
+                headers={'User-Agent': 'Mozilla/5.0'},
+                timeout=30,
+            )
+            detail_resp.raise_for_status()
+            info = detail_resp.json().get('jobPostingInfo', {})
+        except Exception:
+            info = {}
+
+        job_url = f'{base}/en-US/{board}{ext_path}'
+        jobs.append({
+            'job_title':    info.get('title') or posting.get('title', ''),
+            'company':      company_name,
+            'job_url':      job_url,
+            'description':  _strip_html(info.get('jobDescription', ''))[:8000],
+            'date_posted':  (info.get('startDate') or '')[:10],
+            'location_raw': posting.get('locationsText', ''),
+        })
+        time.sleep(0.2)
+
+    return jobs
         total = data.get('total', 0)
         offset += limit
         if offset >= total or offset >= 400:  # raised cap since we're no longer pre-filtered
