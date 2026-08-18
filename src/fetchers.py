@@ -183,6 +183,7 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
         time.sleep(0.2)
 
     return jobs
+    
 FETCHERS = {
     'ashby':      fetch_ashby,
     'greenhouse': fetch_greenhouse,
