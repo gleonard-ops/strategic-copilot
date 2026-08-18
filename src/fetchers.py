@@ -135,9 +135,9 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
             break
         listings.extend(batch)
         def fetch_workday(handle: str, company_name: str, seniority_keywords: list = None) -> list:
-    if '/' not in handle:
-        print(f'    Workday handle must be "subdomain.wdN/board", got: {handle}')
-        return []
+            if '/' not in handle:
+            print(f'    Workday handle must be "subdomain.wdN/board", got: {handle}')
+            return []
 
     tenant_domain, board = handle.split('/', 1)
     company_slug = tenant_domain.split('.')[0]
