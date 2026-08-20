@@ -2,6 +2,7 @@ import re
 import time
 import requests
 from datetime import datetime
+import html as html_lib
 
 
 def _strip_html(html: str) -> str:
@@ -185,7 +186,6 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
     return jobs
 
 def fetch_careerpuck(handle: str, company_name: str) -> list:
-    # handle = company slug, e.g. "avalara"
     url = f'https://api.careerpuck.com/v1/public/job-boards/{handle}'
     try:
         resp = requests.get(
@@ -208,35 +208,27 @@ def fetch_careerpuck(handle: str, company_name: str) -> list:
     if not postings:
         return []
 
-    # DIAGNOSTIC: field names aren't confirmed yet — dump the first posting
-    # so we can map real fields on the next run and remove this after.
-    import json
-    print(f'    [{company_name}] CAREERPUCK SAMPLE KEYS: {list(postings[0].keys())}')
-    print(f'    [{company_name}] CAREERPUCK SAMPLE FULL: {json.dumps(postings[0])[:2000]}')
-
     jobs = []
     for item in postings:
-        title = item.get('title') or item.get('name') or ''
-        job_id = item.get('id') or item.get('jobId') or item.get('slug') or ''
-        job_url = item.get('url') or item.get('applyUrl') or (
-            f'https://app.careerpuck.com/job-board/{handle}/job/{job_id}' if job_id else ''
-        )
-        desc = item.get('description') or item.get('descriptionHtml') or item.get('content') or ''
-        loc = item.get('location') or item.get('locationName') or ''
+        # content is double HTML-entity-encoded, e.g. &amp;apos; -> &apos; -> '
+        raw_content = item.get('content', '') or ''
+        decoded = html_lib.unescape(html_lib.unescape(raw_content))
+
+        loc = item.get('location') or item.get('office') or ''
         if isinstance(loc, dict):
-            loc = loc.get('name', '')
-        date_posted = (item.get('postedAt') or item.get('createdAt') or item.get('publishedAt') or '')[:10]
+            loc = loc.get('name', '') or loc.get('city', '') or ''
 
         jobs.append({
-            'job_title':    title,
+            'job_title':    item.get('title', ''),
             'company':      company_name,
-            'job_url':      job_url,
-            'description':  _strip_html(desc)[:8000],
-            'date_posted':  date_posted,
+            'job_url':      item.get('publicUrl') or item.get('applyUrl', ''),
+            'description':  _strip_html(decoded)[:8000],
+            'date_posted':  (item.get('postedAt') or '')[:10],
             'location_raw': str(loc),
         })
 
     return jobs
+
 
 FETCHERS = {
     'ashby':      fetch_ashby,
