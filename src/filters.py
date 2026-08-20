@@ -25,6 +25,12 @@ _US_COUNTRY_TERMS = [
     'united states', 'usa', 'u.s.a', 'u.s.', ' us,', ' us -', '- us', ', us',
 ]
 
+_NON_US_COUNTRY_TERMS = [
+    'canada', 'mexico', 'india', 'united kingdom', 'uk', 'australia',
+    'singapore', 'germany', 'france', 'ireland', 'philippines', 'brazil',
+    'japan', 'china', 'poland', 'spain', 'netherlands',
+]
+
 
 def _location_ok(loc: str, mode: str) -> bool:
     if not loc:
@@ -35,6 +41,10 @@ def _location_ok(loc: str, mode: str) -> bool:
         return 'remote' in loc_lower
 
     if mode == 'us only':
+         # A named non-US country anywhere in the string overrides any
+        # ambiguous 2-letter code match (e.g. "CA" = Canada, not California)
+        if any(re.search(rf'\b{re.escape(country)}\b', loc_lower) for country in _NON_US_COUNTRY_TERMS):
+            return False
         # Full state names and country terms — safe as plain substring matches
         if any(state in loc_lower for state in _US_STATES_FULL):
             return True
