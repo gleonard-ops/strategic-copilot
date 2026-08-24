@@ -4,6 +4,12 @@ import base64
 import gspread
 from google.oauth2.service_account import Credentials
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
+def _open_sheet_with_retry(client, spreadsheet_id):
+    return client.open_by_key(spreadsheet_id)
+
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.readonly',
