@@ -65,7 +65,7 @@ def get_client():
 
 
 def ensure_setup(client, spreadsheet_id: str):
-    sheet = client.open_by_key(spreadsheet_id)
+    sheet = _open_sheet_with_retry(client, spreadsheet_id)
     existing = {ws.title for ws in sheet.worksheets()}
     created = []
     for tab_name, headers, placeholders in _TAB_SETUP:
