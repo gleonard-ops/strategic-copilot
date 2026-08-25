@@ -87,7 +87,7 @@ def main():
         for s in scored:
             url = s.get('Job URL', '')
             if url and url not in seen_urls:
-                new_urls.append(url)
+                new_urls.append(url, s.get('Fit Score', '')))
                 seen_urls.add(url)
 
         hits = [s for s in scored if s.get('Fit Score', 0) >= threshold and len(s) > 2]
