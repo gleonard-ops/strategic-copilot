@@ -47,7 +47,7 @@ _COMPANIES_PLACEHOLDER = [
 _TAB_SETUP = [
     (COMPANIES_TAB, ['Company Name', 'ATS Type', 'ATS Handle', 'Active', 'Seniority Override'], _COMPANIES_PLACEHOLDER),
     (PROFILE_TAB,   ['Field', 'Value'],                                   _PROFILE_PLACEHOLDER),
-    (SCORED_TAB,    ['Job URL'],                                          []),
+    (SCORED_TAB,    ['Job URL', 'Fit Score'],                             []),
     (RESULTS_TAB,   RESULTS_HEADERS,                                      []),
 ]
 
