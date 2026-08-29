@@ -89,11 +89,11 @@ def read_seen_urls(client, spreadsheet_id: str) -> set:
     return set(v.strip() for v in values[1:] if v.strip())
 
 
-def append_scored_urls(client, spreadsheet_id: str, urls: list):
-    if not urls:
+def append_scored_urls(client, spreadsheet_id: str, urls_and_scores: list):
+    if not urls_and_scores:
         return
     ws = _ws(client, spreadsheet_id, SCORED_TAB)
-    ws.append_rows([[url] for url in urls], value_input_option='RAW')
+    ws.append_rows([[url, score] for url, score in urls_and_scores], value_input_option='RAW')
 
 
 def append_results(client, spreadsheet_id: str, jobs: list):
