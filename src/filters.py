@@ -31,6 +31,19 @@ _NON_US_COUNTRY_TERMS = [
     'japan', 'china', 'poland', 'spain', 'netherlands',
 ]
 
+# Some ATS location fields use the ISO country code "IN" for India instead of
+# spelling the country out (e.g. "Bangalore, IN"), which is indistinguishable
+# from the Indiana state abbreviation by the country/state terms above and
+# falls through to the ambiguous two-letter abbreviation match below,
+# incorrectly passing as US. Catch it earlier via known Indian city names,
+# so e.g. "Bangalore, IN" is excluded while "Indianapolis, IN" still passes.
+_INDIA_CITY_TERMS = [
+    'bangalore', 'bengaluru', 'mumbai', 'new delhi', 'delhi', 'hyderabad',
+    'pune', 'chennai', 'gurgaon', 'gurugram', 'noida', 'kolkata',
+    'ahmedabad', 'jaipur', 'kochi', 'coimbatore', 'chandigarh', 'mysore',
+    'mysuru', 'trivandrum', 'thiruvananthapuram', 'vadodara', 'nagpur',
+]
+
 
 def _location_ok(loc: str, mode: str) -> bool:
     if not loc:
@@ -45,7 +58,15 @@ def _location_ok(loc: str, mode: str) -> bool:
         # ambiguous 2-letter code match (e.g. "CA" = Canada, not California)
         if any(re.search(rf'\b{re.escape(country)}\b', loc_lower) for country in _NON_US_COUNTRY_TERMS):
             return False
-        # Full state names and country terms — safe as plain substring matches
+
+        # Same idea for India specifically: some ATS fields give the ISO
+        # country code "IN" rather than spelling out "India", which the
+        # check above won't catch. A known Indian city name is a reliable
+        # tell that this is NOT the Indiana abbreviation.
+        if any(re.search(rf'\b{re.escape(city)}\b', loc_lower) for city in _INDIA_CITY_TERMS):
+            return False
+
+        # Full state names and country terms â€” safe as plain substring matches
         if any(state in loc_lower for state in _US_STATES_FULL):
             return True
         if any(term in loc_lower for term in _US_COUNTRY_TERMS):
@@ -57,14 +78,14 @@ def _location_ok(loc: str, mode: str) -> bool:
             if re.search(rf'\b{abbr}\b', loc_lower):
                 return True
 
-        # Bare "remote" with no location detail at all — ambiguous, allow it
+        # Bare "remote" with no location detail at all â€” ambiguous, allow it
         # rather than silently drop postings that never named a country
         if loc_lower.strip() == 'remote':
             return True
 
         return False
 
-    # "any" or anything else — no filtering
+    # "any" or anything else â€” no filtering
     return True
 
 
