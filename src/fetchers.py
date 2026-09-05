@@ -2,6 +2,7 @@ import re
 import time
 import requests
 from datetime import datetime
+from urllib.parse import quote
 import html as html_lib
 
 
@@ -25,7 +26,12 @@ def _get(url: str):
 
 
 def fetch_ashby(handle: str, company_name: str) -> list:
-    data = _get(f'https://api.ashbyhq.com/posting-api/job-board/{handle}?includeCompensation=true')
+    # Some tenants (e.g. Blackpoint Cyber) use handles containing spaces or other
+    # characters that aren't safe unescaped in a URL path. requests' internal
+    # requote_uri happens to fix up simple cases like a bare space, but we
+    # shouldn't depend on that â€” explicitly percent-encode the handle.
+    safe_handle = quote(handle, safe='')
+    data = _get(f'https://api.ashbyhq.com/posting-api/job-board/{safe_handle}?includeCompensation=true')
     if not data:
         return []
     jobs = []
@@ -113,11 +119,10 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
 
     # Workday's searchText OR-syntax is parsed inconsistently across tenants
     # (some tenants return 0 results for a boolean query that others handle fine).
-    # Pull everything with an empty search and filter client-side instead —
+    # Pull everything with an empty search and filter client-side instead â€”
     # slower per-company but correct on every tenant.
     listings = []
     offset, limit = 0, 20
-    dumped_sample = False
     while True:
         try:
             resp = requests.post(
@@ -135,13 +140,6 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
         batch = data.get('jobPostings', [])
         if not batch:
             break
-
-        # DIAGNOSTIC: dump full shape of the first posting once per company
-        if not dumped_sample:
-            import json
-            print(f'    [{company_name}] SAMPLE POSTING KEYS: {list(batch[0].keys())}')
-            print(f'    [{company_name}] SAMPLE POSTING FULL: {json.dumps(batch[0])[:2000]}')
-            dumped_sample = True
 
         listings.extend(batch)
         total = data.get('total', 0)
@@ -238,3 +236,4 @@ FETCHERS = {
     'workday':    fetch_workday,
     'careerpuck': fetch_careerpuck,
 }
+
