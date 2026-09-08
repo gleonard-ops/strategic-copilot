@@ -66,7 +66,7 @@ def _location_ok(loc: str, mode: str) -> bool:
         if any(re.search(rf'\b{re.escape(city)}\b', loc_lower) for city in _INDIA_CITY_TERMS):
             return False
 
-        # Full state names and country terms â€” safe as plain substring matches
+        # Full state names and country terms — safe as plain substring matches
         if any(state in loc_lower for state in _US_STATES_FULL):
             return True
         if any(term in loc_lower for term in _US_COUNTRY_TERMS):
@@ -78,14 +78,14 @@ def _location_ok(loc: str, mode: str) -> bool:
             if re.search(rf'\b{abbr}\b', loc_lower):
                 return True
 
-        # Bare "remote" with no location detail at all â€” ambiguous, allow it
+        # Bare "remote" with no location detail at all — ambiguous, allow it
         # rather than silently drop postings that never named a country
         if loc_lower.strip() == 'remote':
             return True
 
         return False
 
-    # "any" or anything else â€” no filtering
+    # "any" or anything else — no filtering
     return True
 
 
@@ -101,6 +101,32 @@ _DEFAULT_TARGET = [
     'transformation', 'enablement', 'customer success', 'customer experience',
     'partnerships', 'alliances', 'biz dev', 'ai strategy', 'ai lead', 'enterprise',
     'growth', 'chief of staff', 'value', 'market', 'field ',
+    # Customer Success / Health — titles like "Customer Health" or "Critical
+    # Accounts" describe the same function as "customer success" but weren't
+    # covered (this is what caused the MongoDB Senior Director, Customer
+    # Health & Critical Accounts role to be silently filtered out).
+    'customer health', 'critical accounts', 'customer intelligence',
+    'account health', 'customer insights', 'client success', 'client experience',
+    'customer outcomes', 'customer journey', 'customer advocacy', 'voice of customer',
+    # Corporate / Strategic Planning
+    'corporate strategy', 'corporate development', 'strategic planning',
+    'strategic initiatives', 'strategic programs', 'business planning',
+    'transformation office', 'pmo', 'program management office',
+    # Strategy & Ops hybrid titles
+    'strategy & operations', 'strategy and operations', 's&o', 'stratops',
+    # Growth / Expansion
+    'growth strategy', 'market expansion', 'international expansion',
+    'go to market strategy', 'product-led growth', 'plg',
+    # Partnerships / Ecosystem
+    'strategic partnerships', 'ecosystem', 'channel strategy',
+    # AI-adjacent strategy
+    'ai transformation', 'ai adoption', 'ai operations',
+    # Retention
+    'retention strategy', 'renewals',
+    # Commercial ops (kept narrower than a bare "sales ops"/"revops" match,
+    # which risked pulling in individual-contributor deal-desk analyst roles)
+    'commercial operations', 'commercial ops', 'deal desk', 'pricing strategy',
+    'monetization',
 ]
 _DEFAULT_EXCLUDE = [
     'engineer', 'devops', 'backend', 'frontend', 'fullstack', 'full-stack', 'qa ', 'sre ',
@@ -111,6 +137,11 @@ _DEFAULT_EXCLUDE = [
     'creative director', 'communications', 'public relation', 'cybersecurity',
     'information security', 'security operation', 'supply chain', 'logistics',
     'facilities', 'real estate', 'data science', 'machine learning', 'clinical', 'medical',
+    # Excluded per direction, not just omitted from target list — bare
+    # 'operations'/' ops' in _DEFAULT_TARGET would otherwise still match
+    # these titles regardless of whether the specific phrase is targeted.
+    'marketing operations', 'marketing ops', 'revenue operations', 'revops',
+    'rev ops', 'sales operations', 'sales ops',
 ]
 
 
