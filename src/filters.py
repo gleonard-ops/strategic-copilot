@@ -162,7 +162,7 @@ def _build_filter_lists(profile: dict) -> tuple:
     return location, seniority, target, exclude
 
 
-def is_too_old(job: dict, days: int = 30) -> bool:
+def is_too_old(job: dict, days: int = 60) -> bool:
     date_str = (job.get('date_posted') or '')[:10]
     if not date_str:
         return False
