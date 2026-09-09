@@ -91,57 +91,218 @@ def _location_ok(loc: str, mode: str) -> bool:
 
 # Fallback defaults used when profile fields are blank
 _DEFAULT_SENIORITY = [
-    'head of', 'vp ', 'vp,', 'vice president', 'director', 'chief',
-    'principal', 'managing director', 'general manager',
+    'head of',
+    'head ',
+    'global head',
+    'vp ',
+    'vp,',
+    'svp ',
+    'svp,',
+    'evp ',
+    'evp,',
+    'vice president',
+    'senior vice president',
+    'executive vice president',
+    'director',
+    'chief',
+    'principal',
+    'managing director',
+    'general manager',
+    'gm ',
+    'gm,',
+]
+_SENIOR_TITLE_OVERRIDES = [
+    'senior client partner',
+    'strategic client partner',
+    'enterprise client partner',
+    'industry client partner',
 ]
 _DEFAULT_TARGET = [
-    'gtm', 'go-to-market', 'go to market', 'sales', 'revenue', 'commercial',
-    'product ops', 'product operations', 'product strategy', 'business ops',
-    'business operations', 'operations', ' ops', 'strategy', 'strategic',
-    'transformation', 'enablement', 'customer success', 'customer experience',
-    'partnerships', 'alliances', 'biz dev', 'ai strategy', 'ai lead', 'enterprise',
-    'growth', 'chief of staff', 'value', 'market', 'field ',
-    # Customer Success / Health — titles like "Customer Health" or "Critical
-    # Accounts" describe the same function as "customer success" but weren't
-    # covered (this is what caused the MongoDB Senior Director, Customer
-    # Health & Critical Accounts role to be silently filtered out).
-    'customer health', 'critical accounts', 'customer intelligence',
-    'account health', 'customer insights', 'client success', 'client experience',
-    'customer outcomes', 'customer journey', 'customer advocacy', 'voice of customer',
-    # Corporate / Strategic Planning
-    'corporate strategy', 'corporate development', 'strategic planning',
-    'strategic initiatives', 'strategic programs', 'business planning',
-    'transformation office', 'pmo', 'program management office',
-    # Strategy & Ops hybrid titles
-    'strategy & operations', 'strategy and operations', 's&o', 'stratops',
-    # Growth / Expansion
-    'growth strategy', 'market expansion', 'international expansion',
-    'go to market strategy', 'product-led growth', 'plg',
+
+    # Core Customer Success / Experience
+    'customer success',
+    'client success',
+    'customer experience',
+    'client experience',
+    'customer strategy',
+    'customer growth',
+    'customer operations',
+    'customer transformation',
+    'customer excellence',
+    'customer engagement',
+    'customer lifecycle',
+    'customer outcomes',
+    'customer value',
+    'value realization',
+    'customer adoption',
+
+    # Customer Health / Risk / Intelligence
+    'customer health',
+    'account health',
+    'customer intelligence',
+    'customer insights',
+    'critical accounts',
+    'critical customers',
+    'customer risk',
+    'customer retention',
+    'retention strategy',
+
+    # Strategic Accounts / Account Management
+    'strategic accounts',
+    'strategic account',
+    'enterprise accounts',
+    'enterprise account management',
+    'global accounts',
+    'global account management',
+    'key accounts',
+    'major accounts',
+    'account management',
+    'strategic customers',
+
+    # Renewals / Post-Sales
+    'renewals',
+    'renewal strategy',
+    'post-sales',
+    'post sales',
+    'customer success & services',
+    'customer success and services',
+    'success & services',
+    'success and services',
+
+    # Client Partner / Strategic IC
+    'client partner',
+    'strategic client partner',
+    'enterprise client partner',
+    'industry client partner',
+
+    # Services / Delivery
+    'professional services',
+    'customer delivery',
+    'client delivery',
+    'service delivery',
+
+    # AI / Transformation
+    'ai transformation',
+    'ai adoption',
+    'enterprise ai transformation',
+    'digital transformation',
+    'enterprise transformation',
+
     # Partnerships / Ecosystem
-    'strategic partnerships', 'ecosystem', 'channel strategy',
-    # AI-adjacent strategy
-    'ai transformation', 'ai adoption', 'ai operations',
-    # Retention
-    'retention strategy', 'renewals',
-    # Commercial ops (kept narrower than a bare "sales ops"/"revops" match,
-    # which risked pulling in individual-contributor deal-desk analyst roles)
-    'commercial operations', 'commercial ops', 'deal desk', 'pricing strategy',
-    'monetization',
+    'strategic partnerships',
+    'partnerships',
+    'alliances',
+    'ecosystem',
+    'channel strategy',
+
+    # Selected Strategic Leadership
+    'strategic programs',
+    'strategic initiatives',
+    'chief of staff',
+    'general manager',
+
+    # Chief Customer roles
+    'chief customer officer',
+    'chief experience officer',
 ]
 _DEFAULT_EXCLUDE = [
-    'engineer', 'devops', 'backend', 'frontend', 'fullstack', 'full-stack', 'qa ', 'sre ',
-    'design', 'scientist', 'researcher', ' research', ' legal', 'counsel', 'attorney',
-    'compliance', 'governance', 'regulatory', 'finance', 'financial', 'treasury',
-    'accounting', 'controllership', 'procurement', 'tax ', 'compensation', 'benefits',
-    'recruiter', 'recruiting', 'talent acquisition', 'brand ', 'content director',
-    'creative director', 'communications', 'public relation', 'cybersecurity',
-    'information security', 'security operation', 'supply chain', 'logistics',
-    'facilities', 'real estate', 'data science', 'machine learning', 'clinical', 'medical',
-    # Excluded per direction, not just omitted from target list — bare
-    # 'operations'/' ops' in _DEFAULT_TARGET would otherwise still match
-    # these titles regardless of whether the specific phrase is targeted.
-    'marketing operations', 'marketing ops', 'revenue operations', 'revops',
-    'rev ops', 'sales operations', 'sales ops',
+
+    # Engineering / technical individual-contributor functions
+    'software engineer',
+    'security engineer',
+    'data engineer',
+    'machine learning engineer',
+    'ml engineer',
+    'devops',
+    'backend',
+    'frontend',
+    'fullstack',
+    'full-stack',
+    'site reliability',
+    'sre ',
+    'qa ',
+    'quality assurance',
+    'data science',
+    'scientist',
+    'researcher',
+
+    # Technical pre-sales
+    'sales engineer',
+    'solutions engineer',
+    'solution engineer',
+    'solutions engineering',
+    'pre-sales',
+    'presales',
+
+    # Direct hunter sales
+    'account executive',
+    'sales director',
+    'director of sales',
+    'regional sales',
+    'area sales',
+    'field sales',
+    'inside sales',
+    'sales development',
+    'business development representative',
+    'sales development representative',
+
+    # Marketing
+    'marketing operations',
+    'marketing ops',
+    'growth marketing',
+    'product marketing',
+    'demand generation',
+    'brand ',
+    'content director',
+    'creative director',
+    'communications',
+    'public relations',
+
+    # HR / Recruiting
+    'recruiter',
+    'recruiting',
+    'talent acquisition',
+    'human resources',
+    'people operations',
+    'compensation',
+    'benefits',
+
+    # Legal
+    'general counsel',
+    'legal counsel',
+    'attorney',
+
+    # Finance / Accounting FUNCTIONS
+    'director of finance',
+    'finance director',
+    'financial planning',
+    'fp&a',
+    'accounting director',
+    'director of accounting',
+    'controller',
+    'controllership',
+    'treasury',
+    'tax ',
+
+    # Pure RevOps / Sales Ops
+    'director of revenue operations',
+    'director revenue operations',
+    'vp revenue operations',
+    'vice president revenue operations',
+    'head of revenue operations',
+    'director of sales operations',
+    'director sales operations',
+    'vp sales operations',
+    'head of sales operations',
+
+    # Clearly unrelated functions
+    'procurement',
+    'supply chain',
+    'logistics',
+    'facilities',
+    'real estate',
+    'clinical',
+    'medical',
 ]
 
 
@@ -174,17 +335,21 @@ def is_too_old(job: dict, days: int = 60) -> bool:
 
 
 def passes_title_filter(job: dict, profile: dict = None) -> bool:
-    profile  = profile or {}
+    profile = profile or {}
     location, seniority, target, exclude = _build_filter_lists(profile)
 
     title = (job.get('job_title') or '').lower()
-    loc   = (job.get('location_raw') or '').strip()
+    loc = (job.get('location_raw') or '').strip()
 
     if not _location_ok(loc, location):
         return False
 
-    has_seniority = any(s in title for s in seniority)
-    has_exclude   = any(s in title for s in exclude)
-    has_target    = any(f in title for f in target)
+    has_seniority = (
+        any(s in title for s in seniority)
+        or any(s in title for s in _SENIOR_TITLE_OVERRIDES)
+    )
+
+    has_exclude = any(s in title for s in exclude)
+    has_target = any(f in title for f in target)
 
     return has_seniority and not has_exclude and has_target
