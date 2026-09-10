@@ -29,7 +29,7 @@ def fetch_ashby(handle: str, company_name: str) -> list:
     # Some tenants (e.g. Blackpoint Cyber) use handles containing spaces or other
     # characters that aren't safe unescaped in a URL path. requests' internal
     # requote_uri happens to fix up simple cases like a bare space, but we
-    # shouldn't depend on that â€” explicitly percent-encode the handle.
+    # shouldn't depend on that — explicitly percent-encode the handle.
     safe_handle = quote(handle, safe='')
     data = _get(f'https://api.ashbyhq.com/posting-api/job-board/{safe_handle}?includeCompensation=true')
     if not data:
@@ -67,7 +67,13 @@ def fetch_greenhouse(handle: str, company_name: str) -> list:
 
 
 def fetch_lever(handle: str, company_name: str) -> list:
+    # Most Lever accounts are on the global host, but some (e.g. Quantinuum)
+    # are EU-hosted and only answer on api.eu.lever.co — the global host
+    # returns nothing for those, not an error, so fall back automatically
+    # rather than requiring a separate ATS type or sheet convention per region.
     data = _get(f'https://api.lever.co/v0/postings/{handle}?mode=json')
+    if not isinstance(data, list) or not data:
+        data = _get(f'https://api.eu.lever.co/v0/postings/{handle}?mode=json')
     if not isinstance(data, list):
         return []
     jobs = []
@@ -119,7 +125,7 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
 
     # Workday's searchText OR-syntax is parsed inconsistently across tenants
     # (some tenants return 0 results for a boolean query that others handle fine).
-    # Pull everything with an empty search and filter client-side instead â€”
+    # Pull everything with an empty search and filter client-side instead —
     # slower per-company but correct on every tenant.
     listings = []
     offset, limit = 0, 20
@@ -236,4 +242,3 @@ FETCHERS = {
     'workday':    fetch_workday,
     'careerpuck': fetch_careerpuck,
 }
-
