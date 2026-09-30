@@ -3,9 +3,9 @@ import re
 from typing import Any, Dict, List, Tuple
 
 
-# ---------------------------------------------------------------------------
-# Location matching
-# ---------------------------------------------------------------------------
+# =============================================================================
+# LOCATION DATA
+# =============================================================================
 
 _US_STATES_FULL = [
     'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado',
@@ -21,51 +21,535 @@ _US_STATES_FULL = [
 ]
 
 _US_STATES_ABBR = [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID',
-    'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS',
-    'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK',
-    'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV',
-    'WI', 'WY', 'DC',
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+    'DC',
 ]
 
 _NON_US_COUNTRY_TERMS = [
-    'canada', 'mexico', 'india', 'united kingdom', 'australia', 'singapore',
-    'germany', 'france', 'ireland', 'philippines', 'brazil', 'japan',
-    'china', 'poland', 'spain', 'netherlands', 'switzerland', 'sweden',
-    'norway', 'denmark', 'finland', 'italy', 'portugal', 'israel',
-    'south korea', 'korea', 'new zealand',
+    'canada',
+    'mexico',
+    'india',
+
+    'united kingdom',
+    'england',
+    'scotland',
+    'wales',
+    'northern ireland',
+
+    'australia',
+    'new zealand',
+
+    'singapore',
+    'germany',
+    'france',
+    'ireland',
+    'philippines',
+    'brazil',
+    'japan',
+    'china',
+    'poland',
+    'spain',
+    'netherlands',
+    'switzerland',
+    'sweden',
+    'norway',
+    'denmark',
+    'finland',
+    'italy',
+    'portugal',
+    'israel',
+    'south korea',
+    'korea',
 ]
 
 _NON_US_REGION_TERMS = [
-    'emea', 'apac', 'asia pacific', 'europe only', 'european union',
-    'latin america', 'latam',
+    'emea',
+    'apac',
+    'asia pacific',
+    'europe only',
+    'european union',
+    'latin america',
+    'latam',
 ]
+
 
 # Some ATS systems use "IN" for India, which conflicts with Indiana.
 _INDIA_CITY_TERMS = [
-    'bangalore', 'bengaluru', 'mumbai', 'new delhi', 'delhi', 'hyderabad',
-    'pune', 'chennai', 'gurgaon', 'gurugram', 'noida', 'kolkata',
-    'ahmedabad', 'jaipur', 'kochi', 'coimbatore', 'chandigarh', 'mysore',
-    'mysuru', 'trivandrum', 'thiruvananthapuram', 'vadodara', 'nagpur',
+    'bangalore',
+    'bengaluru',
+    'mumbai',
+    'new delhi',
+    'delhi',
+    'hyderabad',
+    'pune',
+    'chennai',
+    'gurgaon',
+    'gurugram',
+    'noida',
+    'kolkata',
+    'ahmedabad',
+    'jaipur',
+    'kochi',
+    'coimbatore',
+    'chandigarh',
+    'mysore',
+    'mysuru',
+    'trivandrum',
+    'thiruvananthapuram',
+    'vadodara',
+    'nagpur',
 ]
 
 
-def _normalize_text(value: str) -> str:
-    """Normalize text for phrase matching."""
-    value = (value or '').lower()
+# =============================================================================
+# FALLBACK PROFILE VALUES
+#
+# These are used ONLY if the corresponding profile field is blank.
+#
+# Your actual profile values should normally take precedence.
+# =============================================================================
+
+_DEFAULT_SENIORITY = [
+    'vp',
+    'vice president',
+    'head of',
+    'head',
+    'chief customer officer',
+    'chief experience officer',
+    'svp',
+    'senior vice president',
+    'global head',
+    'director',
+    'managing director',
+    'executive director',
+    'principal',
+    'practice leader',
+    'business unit leader',
+    'general manager',
+    'managing partner',
+    'client executive',
+    'regional vice president',
+    'global director',
+]
+
+
+_DEFAULT_TARGET = [
+    # Customer success / experience
+    'customer success',
+    'client success',
+    'client adoption',
+    'client engagement',
+    'customer solutions',
+    'business value',
+    'customer experience',
+    'client experience',
+    'customer strategy',
+    'customer growth',
+    'customer operations',
+    'customer transformation',
+    'customer excellence',
+    'customer engagement',
+    'customer lifecycle',
+    'customer outcomes',
+    'customer value',
+    'value realization',
+    'customer adoption',
+    'customer health',
+    'account health',
+    'customer intelligence',
+    'customer insights',
+    'critical accounts',
+    'critical customers',
+    'customer risk',
+    'customer retention',
+    'retention strategy',
+
+    # Strategic accounts / AM
+    'strategic accounts',
+    'strategic account',
+    'enterprise accounts',
+    'enterprise account management',
+    'global accounts',
+    'global account management',
+    'key accounts',
+    'major accounts',
+    'account management',
+    'strategic customers',
+
+    # Renewals / post-sales
+    'renewals',
+    'renewal strategy',
+    'post-sales',
+    'post sales',
+    'customer success & services',
+    'customer success and services',
+    'success & services',
+    'success and services',
+
+    # Strategic IC
+    'client partner',
+    'strategic client partner',
+    'enterprise client partner',
+    'industry client partner',
+
+    # Services
+    'professional services',
+    'customer delivery',
+    'client delivery',
+    'service delivery',
+
+    # AI / transformation
+    'ai transformation',
+    'ai adoption',
+    'enterprise ai transformation',
+    'digital transformation',
+    'enterprise transformation',
+
+    # Partnerships
+    'strategic partnerships',
+    'partnerships',
+    'alliances',
+    'ecosystem',
+    'channel strategy',
+
+    # Programs / other leadership
+    'strategic programs',
+    'strategic initiatives',
+    'chief of staff',
+    'general manager',
+    'chief customer officer',
+    'chief experience officer',
+]
+
+
+_DEFAULT_EXCLUDE = [
+    # Engineering / technical IC
+    'software engineer',
+    'security engineer',
+    'data engineer',
+    'machine learning engineer',
+    'ml engineer',
+    'devops',
+    'backend',
+    'frontend',
+    'fullstack',
+    'full-stack',
+    'site reliability',
+    'sre',
+    'qa',
+    'quality assurance',
+    'data science',
+    'scientist',
+    'researcher',
+    'developer',
+
+    # Pre-sales / technical sales
+    'sales engineer',
+    'solutions engineer',
+    'solution engineer',
+    'solutions engineering',
+    'pre-sales',
+    'presales',
+
+    # New-logo sales
+    'account executive',
+    'sales director',
+    'director of sales',
+    'regional sales',
+    'area sales',
+    'field sales',
+    'inside sales',
+    'sales development',
+    'business development representative',
+    'sales development representative',
+
+    # Marketing
+    'marketing operations',
+    'marketing ops',
+    'growth marketing',
+    'product marketing',
+    'demand generation',
+    'brand',
+    'content director',
+    'creative director',
+    'communications',
+    'public relations',
+
+    # Product
+    'product manager',
+    'product management',
+
+    # HR
+    'recruiter',
+    'recruiting',
+    'talent acquisition',
+    'human resources',
+    'people operations',
+    'compensation',
+    'benefits',
+
+    # Legal
+    'general counsel',
+    'legal counsel',
+    'attorney',
+
+    # Finance functional roles
+    'director of finance',
+    'finance director',
+    'financial planning',
+    'fp&a',
+    'accounting director',
+    'director of accounting',
+    'controller',
+    'controllership',
+    'treasury',
+    'tax',
+
+    # RevOps / Sales Ops
+    'director of revenue operations',
+    'director revenue operations',
+    'vp revenue operations',
+    'vice president revenue operations',
+    'head of revenue operations',
+
+    'director of sales operations',
+    'director sales operations',
+    'vp sales operations',
+    'head of sales operations',
+
+    # Other
+    'procurement',
+    'supply chain',
+    'logistics',
+    'facilities',
+    'real estate',
+    'clinical',
+    'medical',
+
+    # Support / call center
+    'customer support',
+    'technical support',
+    'help desk',
+    'call center',
+]
+
+
+# =============================================================================
+# SAFE ADDITIONAL TITLE ALIASES
+#
+# These supplement the profile rather than replace it.
+#
+# They address title variants that have appeared in the actual job search
+# but are easy to miss with literal profile matching.
+# =============================================================================
+
+_ADDITIONAL_TARGET_ALIASES = [
+    'global client partner',
+    'executive client partner',
+    'customer partner',
+
+    'strategic account management',
+
+    'enterprise am',
+    'strategic am',
+    'global am',
+
+    'customer success leader',
+    'customer experience leader',
+    'cs leader',
+
+    'customer transformation',
+    'technology transformation',
+
+    'partner success',
+    'partner experience',
+
+    'value consulting',
+    'strategy consulting',
+]
+
+
+# These titles are intentionally allowed to satisfy the seniority requirement
+# even if they don't contain Director / VP / Head / Principal.
+#
+# This preserves the senior strategic IC lane.
+_SENIOR_IC_PATTERNS = [
+    r'\bstrategic client partner\b',
+    r'\benterprise client partner\b',
+    r'\bindustry client partner\b',
+    r'\bglobal client partner\b',
+    r'\bexecutive client partner\b',
+    r'\bclient partner\b',
+
+    r'\bclient executive\b',
+
+    r'\bexecutive customer success leader\b',
+    r'\bcustomer success leader\b',
+    r'\bcustomer experience leader\b',
+    r'\bexecutive cs leader\b',
+
+    r'\bstrategic accounts lead\b',
+    r'\baccount management lead\b',
+
+    r'\benterprise am lead\b',
+    r'\bstrategic am lead\b',
+    r'\bglobal am lead\b',
+
+    r'\bai transformation lead\b',
+    r'\bcustomer transformation lead\b',
+
+    r'\bpractice leader\b',
+    r'\bbusiness unit leader\b',
+]
+
+
+# Strongest functional signals for ranking.
+#
+# These are bonuses only. They are NOT required to pass.
+_HIGH_PRIORITY_TARGETS = [
+    'customer success',
+    'client success',
+
+    'strategic accounts',
+    'strategic account',
+
+    'enterprise account management',
+    'global account management',
+    'account management',
+
+    'customer growth',
+    'customer retention',
+    'renewals',
+    'post-sales',
+    'post sales',
+
+    'customer outcomes',
+    'customer value',
+    'value realization',
+    'customer adoption',
+
+    'client partner',
+    'strategic client partner',
+    'enterprise client partner',
+    'global client partner',
+    'executive client partner',
+
+    'ai transformation',
+    'ai adoption',
+    'enterprise ai transformation',
+
+    'professional services',
+]
+
+
+# =============================================================================
+# TEXT HELPERS
+# =============================================================================
+
+def _normalize_text(value: Any) -> str:
+    """
+    Normalize text for reliable title matching.
+
+    Examples:
+        "Customer Success & Services"
+        -> "customer success and services"
+
+        "VP, Strategic-Accounts"
+        -> "vp strategic accounts"
+    """
+
+    value = str(value or '').lower()
+
     value = value.replace('&', ' and ')
-    value = re.sub(r'[-_/|,;:()\[\]{}]+', ' ', value)
-    value = re.sub(r'\s+', ' ', value)
+
+    value = re.sub(
+        r'[-_/|,;:()\[\]{}]+',
+        ' ',
+        value
+    )
+
+    value = re.sub(
+        r'\s+',
+        ' ',
+        value
+    )
+
     return value.strip()
 
 
-def _contains_phrase(normalized_text: str, phrase: str) -> bool:
+def _parse_list(value: Any) -> List[str]:
     """
-    Match a normalized phrase on word boundaries.
+    Parse profile fields supplied as:
 
-    Avoids accidental matches such as "market" inside "marketing"
-    or "cs" inside another word.
+        comma-separated text
+        pipe-separated text
+        Python list
+        Python tuple
+        Python set
+
+    Commas and pipes can safely coexist.
     """
+
+    if value is None:
+        return []
+
+    if isinstance(value, (list, tuple, set)):
+        return [
+            str(item).strip().lower()
+            for item in value
+            if str(item).strip()
+        ]
+
+    text = str(value).strip()
+
+    if not text:
+        return []
+
+    return [
+        item.strip().lower()
+        for item in re.split(r'[|,]', text)
+        if item.strip()
+    ]
+
+
+def _profile_get(
+    profile: Dict[str, Any],
+    *keys: str,
+    default: Any = None
+) -> Any:
+    """
+    Read a profile value while tolerating common key naming variations.
+    """
+
+    profile = profile or {}
+
+    for key in keys:
+        if key in profile:
+            value = profile.get(key)
+
+            if value is not None and str(value).strip() != '':
+                return value
+
+    return default
+
+
+def _contains_phrase(
+    normalized_text: str,
+    phrase: str
+) -> bool:
+    """
+    Match phrases on word boundaries rather than using loose substring logic.
+
+    This prevents mistakes such as:
+        "market" matching "marketing"
+        "tax" matching "syntax"
+        "brand" matching unrelated longer words
+    """
+
     phrase_norm = _normalize_text(phrase)
 
     if not phrase_norm:
@@ -74,18 +558,31 @@ def _contains_phrase(normalized_text: str, phrase: str) -> bool:
     return bool(
         re.search(
             rf'(?<!\w){re.escape(phrase_norm)}(?!\w)',
-            normalized_text,
+            normalized_text
         )
     )
 
 
-def _phrase_matches(normalized_text: str, phrases: List[str]) -> List[str]:
-    return [
-        phrase
-        for phrase in phrases
-        if _contains_phrase(normalized_text, phrase)
-    ]
+def _phrase_matches(
+    normalized_text: str,
+    phrases: List[str]
+) -> List[str]:
 
+    matches = []
+
+    for phrase in phrases:
+        if _contains_phrase(
+            normalized_text,
+            phrase
+        ):
+            matches.append(phrase)
+
+    return matches
+
+
+# =============================================================================
+# LOCATION HELPERS
+# =============================================================================
 
 def _has_us_signal(loc: str) -> bool:
     raw = (loc or '').strip()
@@ -94,7 +591,11 @@ def _has_us_signal(loc: str) -> bool:
     if not raw:
         return False
 
-    if re.search(r'\bunited\s+states\b', lower):
+    # Full country name.
+    if re.search(
+        r'\bunited\s+states\b',
+        lower
+    ):
         return True
 
     # US / USA / U.S. / U.S.A.
@@ -106,18 +607,34 @@ def _has_us_signal(loc: str) -> bool:
 
     # Full state names.
     for state in _US_STATES_FULL:
-        if re.search(rf'\b{re.escape(state)}\b', lower):
+        if re.search(
+            rf'\b{re.escape(state)}\b',
+            lower
+        ):
             return True
 
     india_city_present = any(
-        re.search(rf'\b{re.escape(city)}\b', lower)
+        re.search(
+            rf'\b{re.escape(city)}\b',
+            lower
+        )
         for city in _INDIA_CITY_TERMS
     )
 
-    canada_present = bool(re.search(r'\bcanada\b', lower))
+    canada_present = bool(
+        re.search(
+            r'\bcanada\b',
+            lower
+        )
+    )
 
-    # Prefer uppercase ATS state codes.
-    # This avoids IN="in", OR="or", ME="me", etc.
+    # State abbreviations.
+    #
+    # Require ATS-style uppercase codes to avoid:
+    #   IN = ordinary "in"
+    #   OR = ordinary "or"
+    #   ME = ordinary "me"
+    #
     for abbr in _US_STATES_ABBR:
 
         if abbr == 'IN' and india_city_present:
@@ -132,8 +649,11 @@ def _has_us_signal(loc: str) -> bool:
         ):
             return True
 
-    # Allow a field consisting solely of a lowercase state code.
-    if lower in {abbr.lower() for abbr in _US_STATES_ABBR}:
+    # A bare state abbreviation such as "co".
+    if lower in {
+        abbr.lower()
+        for abbr in _US_STATES_ABBR
+    }:
         return True
 
     return False
@@ -146,25 +666,28 @@ def _has_non_us_signal(loc: str) -> bool:
     if not raw:
         return False
 
-    if any(
-        re.search(rf'\b{re.escape(term)}\b', lower)
-        for term in _NON_US_COUNTRY_TERMS
-    ):
-        return True
+    for term in _NON_US_COUNTRY_TERMS:
+        if re.search(
+            rf'\b{re.escape(term)}\b',
+            lower
+        ):
+            return True
 
-    if any(
-        re.search(rf'\b{re.escape(term)}\b', lower)
-        for term in _NON_US_REGION_TERMS
-    ):
-        return True
+    for term in _NON_US_REGION_TERMS:
+        if re.search(
+            rf'\b{re.escape(term)}\b',
+            lower
+        ):
+            return True
 
-    if any(
-        re.search(rf'\b{re.escape(city)}\b', lower)
-        for city in _INDIA_CITY_TERMS
-    ):
-        return True
+    for city in _INDIA_CITY_TERMS:
+        if re.search(
+            rf'\b{re.escape(city)}\b',
+            lower
+        ):
+            return True
 
-    # UK and GB do not conflict with US state abbreviations.
+    # UK / GB codes.
     if re.search(
         r'(?<![A-Za-z])(?:UK|GB)(?![A-Za-z])',
         raw
@@ -174,44 +697,90 @@ def _has_non_us_signal(loc: str) -> bool:
     return False
 
 
-def _location_ok(loc: str, mode: str) -> bool:
+def _location_ok(
+    loc: str,
+    mode: str
+) -> bool:
     """
-    Location modes:
+    Supported modes:
 
-      "us only"
-          US, North America, or ambiguous bare Remote.
+        us only
+        us eligible
+        remote only
+        any
 
-      "remote only"
-          Must contain Remote and must not clearly be non-US.
+    Philosophy:
+        Keep potentially workable US roles visible.
+        Do not require Colorado / Remote specifically.
+        Location flexibility can be assessed downstream.
 
-      "any"
-          No location filtering.
+    Important behavior:
 
-    Explicit US eligibility wins when several countries are listed, e.g.
-    "United States | Canada | United Kingdom".
+        "United States | Canada | UK"
+            -> passes US-only
+
+        "Remote - United States"
+            -> passes
+
+        "Remote"
+            -> passes
+
+        "Remote - India"
+            -> fails
+
+        "Bangalore, IN"
+            -> fails
+
+        "Indianapolis, IN"
+            -> passes
+
+        "North America"
+            -> passes
     """
 
     if not loc:
+        # Fail open on missing ATS location data.
         return True
 
     raw = loc.strip()
     lower = raw.lower()
 
-    mode = (mode or 'us only').strip().lower()
+    mode = (
+        mode or 'us only'
+    ).strip().lower()
 
-    if mode in {'any', 'all', 'no filter'}:
+    if mode in {
+        'any',
+        'all',
+        'no filter',
+    }:
         return True
 
     has_us = _has_us_signal(raw)
     has_non_us = _has_non_us_signal(raw)
 
-    north_america = bool(
-        re.search(r'\bnorth america\b', lower)
+    is_remote = bool(
+        re.search(
+            r'\bremote\b',
+            lower
+        )
     )
 
-    is_remote = 'remote' in lower
+    north_america = bool(
+        re.search(
+            r'\bnorth america\b',
+            lower
+        )
+    )
 
-    if mode in {'remote', 'remote only'}:
+    # ---------------------------------------------------------------------
+    # Remote-only
+    # ---------------------------------------------------------------------
+
+    if mode in {
+        'remote',
+        'remote only',
+    }:
 
         if not is_remote:
             return False
@@ -225,8 +794,12 @@ def _location_ok(loc: str, mode: str) -> bool:
         if has_non_us:
             return False
 
-        # Bare/ambiguous Remote: retain rather than silently discard.
+        # Bare "Remote" is ambiguous but potentially valid.
         return True
+
+    # ---------------------------------------------------------------------
+    # US-only / US-eligible
+    # ---------------------------------------------------------------------
 
     if mode in {
         'us',
@@ -235,11 +808,11 @@ def _location_ok(loc: str, mode: str) -> bool:
         'us eligible',
     }:
 
-        # Explicit US eligibility wins even if other countries are listed.
+        # Explicit US availability wins even when other countries
+        # are also listed.
         if has_us:
             return True
 
-        # Worth reviewing rather than throwing away.
         if north_america:
             return True
 
@@ -251,832 +824,516 @@ def _location_ok(loc: str, mode: str) -> bool:
 
         return False
 
-    # Unknown mode: fail open rather than unexpectedly hide jobs.
+    # Unknown mode: fail open rather than hide jobs unexpectedly.
     return True
 
 
-# ---------------------------------------------------------------------------
-# Title matching
-# ---------------------------------------------------------------------------
-
-# Core search lane:
-#
-# Enterprise customer/post-sales leadership
-# Strategic accounts / account management
-# Customer growth and value
-# Strategic client leadership
-# AI / enterprise transformation
-#
-_CORE_TARGETS = [
-
-    # Customer leadership
-    'chief customer officer',
-    'customer success',
-    'client success',
-    'customer experience',
-    'client experience',
-    'customer outcomes',
-    'customer growth',
-    'customer value',
-    'customer strategy',
-    'customer transformation',
-    'customer adoption',
-    'customer engagement',
-    'customer health',
-    'customer intelligence',
-    'customer insights',
-    'customer journey',
-    'customer excellence',
-    'voice of customer',
-    'cs leader',
-
-    # Post-sales / lifecycle
-    'post sales',
-    'post sale',
-    'customer lifecycle',
-    'success and services',
-    'renewals',
-    'customer retention',
-    'value realization',
-
-    # Account leadership
-    'account management',
-
-    'strategic account',
-    'strategic accounts',
-
-    'enterprise account',
-    'enterprise accounts',
-
-    'global account',
-    'global accounts',
-
-    'key account',
-    'key accounts',
-
-    'critical account',
-    'critical accounts',
-
-    'enterprise am',
-    'strategic am',
-    'global am',
-
-    # Strategic senior IC
-    'client partner',
-    'strategic client partner',
-    'global client partner',
-    'executive client partner',
-    'customer partner',
-
-    # AI / transformation
-    'ai transformation',
-    'ai adoption',
-    'enterprise ai',
-    'customer ai',
-    'digital transformation',
-    'enterprise transformation',
-    'technology transformation',
-
-    # Deliberate executive path
-    'chief of staff',
-]
-
-
-# Strong adjacencies.
-#
-# These are worth surfacing when title seniority is sufficient.
-_STRONG_ADJACENT_TARGETS = [
-
-    # Partnerships / ecosystem
-    'strategic partnerships',
-    'partnerships',
-    'alliances',
-    'ecosystem',
-    'partner success',
-    'partner experience',
-    'channel strategy',
-
-    # Services / consulting
-    'professional services',
-    'client services',
-    'strategy consulting',
-    'value consulting',
-
-    # Customer-adjacent operating leadership
-    'customer operations',
-    'customer enablement',
-
-    # Strategic programs
-    'strategic programs',
-
-    # GM / business leadership
-    'general manager',
-    'gm',
-    'business unit',
-]
-
-
-# Useful signals, but deliberately too broad to qualify a role by themselves.
-_BROAD_ADJACENT_TARGETS = [
-
-    'commercial strategy',
-    'commercial operations',
-
-    'business transformation',
-    'business planning',
-
-    'strategic planning',
-    'corporate strategy',
-    'strategic initiatives',
-
-    'transformation office',
-
-    'growth strategy',
-    'market expansion',
-
-    'go to market strategy',
-    'gtm strategy',
-
-    'pricing strategy',
-    'monetization',
-    'deal desk',
-
-    'ai strategy',
-    'enterprise strategy',
-]
-
-
-# ---------------------------------------------------------------------------
-# Exclusions
-# ---------------------------------------------------------------------------
-
-# Hard exclusions are intentionally narrow and describe clearly different
-# career archetypes.
-#
-# Important: "financial" and "accounting" are NOT excluded because they often
-# describe an industry/vertical rather than the function.
-#
-_HARD_EXCLUDE = [
-
-    # New-logo / quota IC
-    'account executive',
-    'sales development representative',
-    'business development representative',
-
-    # Technical IC
-    'software engineer',
-    'backend engineer',
-    'frontend engineer',
-    'full stack engineer',
-    'devops engineer',
-    'site reliability engineer',
-    'machine learning engineer',
-    'data scientist',
-    'research scientist',
-
-    # Product career track
-    'product manager',
-    'product management',
-    'product marketing',
-
-    'chief product officer',
-    'vp product',
-    'vice president product',
-    'head of product',
-    'director product',
-    'director of product',
-
-    # Marketing leadership
-    'chief marketing officer',
-    'vp marketing',
-    'vice president marketing',
-    'head of marketing',
-    'director marketing',
-    'director of marketing',
-
-    # Legal career track
-    'general counsel',
-    'legal counsel',
-    'associate counsel',
-    'attorney',
-
-    'chief legal officer',
-    'vp legal',
-    'vice president legal',
-    'head of legal',
-    'director legal',
-    'director of legal',
-
-    # Finance career track
-    'chief financial officer',
-    'vp finance',
-    'vice president finance',
-    'head of finance',
-    'director finance',
-    'director of finance',
-    'controller',
-    'controllership',
-
-    # Engineering leadership
-    'vp engineering',
-    'vice president engineering',
-    'head of engineering',
-    'director engineering',
-    'director of engineering',
-
-    # HR / recruiting
-    'recruiter',
-    'talent acquisition',
-]
-
-
-# Soft negatives reduce score but do not automatically kill the role.
-#
-# This lets:
-#
-#   VP Sales - Account Management
-#
-# survive, while:
-#
-#   VP Sales
-#
-# does not.
-#
-_SOFT_NEGATIVES = {
-
-    'sales operations': -3,
-    'sales ops': -3,
-
-    'revenue operations': -3,
-    'revops': -3,
-    'rev ops': -3,
-
-    'marketing operations': -4,
-    'marketing ops': -4,
-
-    'product operations': -3,
-    'product ops': -3,
-
-    'sales enablement': -2,
-
-    'new logo': -4,
-    'new business': -2,
-
-    'sales': -2,
-
-    'business development': -1,
-}
-
-
-# ---------------------------------------------------------------------------
-# Seniority
-# ---------------------------------------------------------------------------
-
-_EXEC_SENIORITY_PATTERNS = [
-
-    r'\bchief\b',
-
-    r'\bevp\b',
-    r'\bsvp\b',
-    r'\bavp\b',
-
-    r'\bvice president\b',
-    r'\bvp\b',
-
-    r'\bhead of\b',
-
-    # Catches titles such as:
-    # Global Head, Customer Success
-    # Americas Head, Strategic Accounts
-    r'\b(?:global |regional |americas |north america )?head\b',
-
-    r'\bmanaging director\b',
-
-    r'\bgeneral manager\b',
-    r'\bgm\b',
-
-    r'\bpresident\b',
-]
-
-
-_SENIOR_DIRECTOR_PATTERNS = [
-    r'\bsenior director\b',
-    r'\bsr director\b',
-    r'\bexecutive director\b',
-]
-
-
-_DIRECTOR_PATTERNS = [
-    r'\bdirector\b',
-]
-
-
-_PRINCIPAL_PATTERNS = [
-    r'\bprincipal\b',
-]
-
-
-# Senior IC titles that may not contain Director / VP / Principal.
-_SENIOR_IC_PATTERNS = [
-
-    r'\bexecutive customer success leader\b',
-    r'\bcustomer success leader\b',
-    r'\bcustomer experience leader\b',
-    r'\bexecutive cs leader\b',
-
-    r'\bstrategic accounts lead\b',
-    r'\baccount management lead\b',
-
-    r'\benterprise am lead\b',
-    r'\bstrategic am lead\b',
-    r'\bglobal am lead\b',
-
-    r'\bstrategic client partner\b',
-    r'\bglobal client partner\b',
-    r'\bexecutive client partner\b',
-
-    r'\bai transformation lead\b',
-    r'\bcustomer transformation lead\b',
-
-    r'\bbusiness unit leader\b',
-]
-
-
-# Compatibility aliases in case another module imports the old constants.
-_DEFAULT_SENIORITY = [
-    'chief',
-    'evp',
-    'svp',
-    'avp',
-    'vice president',
-    'vp',
-    'head',
-    'managing director',
-    'general manager',
-    'gm',
-    'senior director',
-    'sr director',
-    'executive director',
-    'director',
-    'principal',
-]
-
-
-_DEFAULT_TARGET = (
-    _CORE_TARGETS
-    + _STRONG_ADJACENT_TARGETS
-    + _BROAD_ADJACENT_TARGETS
-)
-
-
-_DEFAULT_EXCLUDE = _HARD_EXCLUDE
-
-
-# ---------------------------------------------------------------------------
-# Profile parsing
-# ---------------------------------------------------------------------------
-
-def _parse_list(value: Any) -> List[str]:
-    """
-    Accept either:
-
-        "foo, bar, baz"
-
-    or:
-
-        "foo|bar|baz"
-
-    or a Python list / tuple / set.
-    """
-
-    if value is None:
-        return []
-
-    if isinstance(value, (list, tuple, set)):
-        return [
-            str(item).strip().lower()
-            for item in value
-            if str(item).strip()
-        ]
-
-    value = str(value)
-
-    if not value.strip():
-        return []
-
-    sep = '|' if '|' in value else ','
-
-    return [
-        item.strip().lower()
-        for item in value.split(sep)
-        if item.strip()
-    ]
-
+# =============================================================================
+# PROFILE FILTER LISTS
+# =============================================================================
 
 def _build_filter_lists(
     profile: Dict[str, Any]
 ) -> Tuple[str, List[str], List[str], List[str]]:
     """
-    Compatibility helper retaining the same return shape as the old version:
+    Return:
 
-        location, seniority, target, exclude
+        location
+        seniority keywords
+        target functions
+        exclude functions
+
+    Profile values always take precedence over defaults.
     """
 
     profile = profile or {}
 
-    location = (
-        profile.get('location') or ''
-    ).strip().lower() or 'us only'
+    location = str(
+        _profile_get(
+            profile,
+            'location',
+            'Location',
+            default='us only'
+        )
+    ).strip().lower()
 
-    seniority = (
-        _parse_list(profile.get('seniority_keywords'))
-        or _DEFAULT_SENIORITY
+    seniority = _parse_list(
+        _profile_get(
+            profile,
+            'seniority_keywords',
+            'Seniority Keywords',
+            'seniority',
+            default=''
+        )
     )
 
-    target = (
-        _parse_list(profile.get('target_functions'))
-        or _DEFAULT_TARGET
+    target = _parse_list(
+        _profile_get(
+            profile,
+            'target_functions',
+            'Target Functions',
+            'target',
+            default=''
+        )
     )
 
-    exclude = (
-        _parse_list(profile.get('exclude_functions'))
-        or _DEFAULT_EXCLUDE
+    exclude = _parse_list(
+        _profile_get(
+            profile,
+            'exclude_functions',
+            'Exclude Functions',
+            'exclude',
+            default=''
+        )
     )
 
-    return location, seniority, target, exclude
+    if not seniority:
+        seniority = list(_DEFAULT_SENIORITY)
+
+    if not target:
+        target = list(_DEFAULT_TARGET)
+
+    if not exclude:
+        exclude = list(_DEFAULT_EXCLUDE)
+
+    # Safe aliases supplement rather than replace the profile.
+    for alias in _ADDITIONAL_TARGET_ALIASES:
+        if alias not in target:
+            target.append(alias)
+
+    return (
+        location,
+        seniority,
+        target,
+        exclude,
+    )
 
 
-# ---------------------------------------------------------------------------
-# Title scoring
-# ---------------------------------------------------------------------------
+def _get_score_threshold(
+    profile: Dict[str, Any]
+) -> int:
+    """
+    Read the profile score threshold.
 
-def _matches_any_regex(
-    normalized_title: str,
-    patterns: List[str]
+    Your configured value is currently 6.
+    """
+
+    value = _profile_get(
+        profile or {},
+        'score_threshold',
+        'Score Threshold',
+        'score threshold',
+        default=6
+    )
+
+    try:
+        return int(value)
+
+    except (TypeError, ValueError):
+        return 6
+
+
+# =============================================================================
+# SENIORITY MATCHING
+# =============================================================================
+
+def _is_senior_ic_title(
+    normalized_title: str
 ) -> bool:
 
     return any(
-        re.search(pattern, normalized_title)
-        for pattern in patterns
+        re.search(
+            pattern,
+            normalized_title
+        )
+        for pattern in _SENIOR_IC_PATTERNS
     )
 
 
-def _default_seniority_score(
+def _executive_level_bonus(
     normalized_title: str
-) -> Tuple[int, str]:
-
-    if _matches_any_regex(
-        normalized_title,
-        _EXEC_SENIORITY_PATTERNS
-    ):
-        return 4, 'executive seniority'
-
-    if _matches_any_regex(
-        normalized_title,
-        _SENIOR_DIRECTOR_PATTERNS
-    ):
-        return 3, 'senior director'
-
-    if _matches_any_regex(
-        normalized_title,
-        _PRINCIPAL_PATTERNS
-    ):
-        return 3, 'principal'
-
-    if _matches_any_regex(
-        normalized_title,
-        _DIRECTOR_PATTERNS
-    ):
-        return 2, 'director'
-
-    if _matches_any_regex(
-        normalized_title,
-        _SENIOR_IC_PATTERNS
-    ):
-        return 4, 'approved senior IC title'
-
-    return 0, ''
-
-
-def _title_fit_details(
-    title: str,
-    profile: Dict[str, Any] = None
-) -> Dict[str, Any]:
+) -> int:
     """
-    Score title fit.
+    Small ranking bonus for clear VP/Head/Chief/GM-level titles.
 
-    Default threshold = 7.
-
-    Typical outcomes:
-
-        VP Customer Success
-            4 seniority + 6 core = 10
-            PASS
-
-        Director Account Management
-            2 seniority + 6 core = 8
-            PASS
-
-        Strategic Client Partner
-            4 senior IC + 6 core = 10
-            PASS
-
-        Head of Partnerships
-            4 seniority + 5 adjacency = 9
-            PASS
-
-        Director Professional Services
-            2 seniority + 5 adjacency = 7
-            PASS
-
-        VP Corporate Strategy
-            4 seniority + 2 broad = 6
-            FAIL
-
-        VP Sales
-            4 seniority - 2 sales = 2
-            FAIL
-
-        VP Sales - Account Management
-            4 seniority + 6 core - 2 sales = 8
-            PASS
+    This does NOT determine pass/fail by itself.
     """
 
-    profile = profile or {}
+    executive_patterns = [
+        r'\bchief\b',
+        r'\bevp\b',
+        r'\bsvp\b',
+        r'\bsenior vice president\b',
+        r'\bavp\b',
+        r'\bvice president\b',
+        r'\bvp\b',
+        r'\bhead of\b',
+        r'\bglobal head\b',
+        r'\bmanaging director\b',
+        r'\bgeneral manager\b',
+        r'\bmanaging partner\b',
+    ]
 
-    normalized_title = _normalize_text(title)
-
-    if not normalized_title:
-        return {
-            'score': 0,
-            'reasons': [],
-            'hard_exclude': False,
-            'hard_exclude_matches': [],
-        }
-
-    custom_seniority = _parse_list(
-        profile.get('seniority_keywords')
-    )
-
-    custom_target = _parse_list(
-        profile.get('target_functions')
-    )
-
-    custom_exclude = _parse_list(
-        profile.get('exclude_functions')
-    )
-
-    # -------------------------------------------------------
-    # Hard exclusions
-    # -------------------------------------------------------
-
-    excludes = custom_exclude or _HARD_EXCLUDE
-
-    hard_matches = _phrase_matches(
-        normalized_title,
-        excludes
-    )
-
-    if hard_matches:
-        return {
-            'score': -100,
-            'reasons': [],
-            'hard_exclude': True,
-            'hard_exclude_matches': hard_matches,
-        }
-
-    score = 0
-    reasons = []
-
-    # -------------------------------------------------------
-    # Seniority
-    # -------------------------------------------------------
-
-    if custom_seniority:
-
-        seniority_matches = _phrase_matches(
-            normalized_title,
-            custom_seniority
+    if any(
+        re.search(
+            pattern,
+            normalized_title
         )
+        for pattern in executive_patterns
+    ):
+        return 1
 
-        if seniority_matches:
-
-            score += 4
-
-            reasons.append(
-                f"seniority: {seniority_matches[0]}"
-            )
-
-    else:
-
-        seniority_score, seniority_reason = (
-            _default_seniority_score(
-                normalized_title
-            )
-        )
-
-        score += seniority_score
-
-        if seniority_reason:
-            reasons.append(seniority_reason)
-
-    # -------------------------------------------------------
-    # Function
-    # -------------------------------------------------------
-
-    if custom_target:
-
-        target_matches = _phrase_matches(
-            normalized_title,
-            custom_target
-        )
-
-        if target_matches:
-
-            score += 6
-
-            reasons.append(
-                f"target: {target_matches[0]}"
-            )
-
-    else:
-
-        core_matches = _phrase_matches(
-            normalized_title,
-            _CORE_TARGETS
-        )
-
-        strong_matches = _phrase_matches(
-            normalized_title,
-            _STRONG_ADJACENT_TARGETS
-        )
-
-        broad_matches = _phrase_matches(
-            normalized_title,
-            _BROAD_ADJACENT_TARGETS
-        )
-
-        if core_matches:
-
-            score += 6
-
-            reasons.append(
-                f"core function: {core_matches[0]}"
-            )
-
-        elif strong_matches:
-
-            score += 5
-
-            reasons.append(
-                f"strong adjacency: {strong_matches[0]}"
-            )
-
-        elif broad_matches:
-
-            score += 2
-
-            reasons.append(
-                f"broad adjacency: {broad_matches[0]}"
-            )
-
-    # -------------------------------------------------------
-    # Soft penalties
-    # -------------------------------------------------------
-
-    for phrase, penalty in _SOFT_NEGATIVES.items():
-
-        if _contains_phrase(
-            normalized_title,
-            phrase
-        ):
-
-            score += penalty
-
-            reasons.append(
-                f"penalty {penalty}: {phrase}"
-            )
-
-    return {
-        'score': score,
-        'reasons': reasons,
-        'hard_exclude': False,
-        'hard_exclude_matches': [],
-    }
+    return 0
 
 
-# ---------------------------------------------------------------------------
-# Optional diagnostic function
-# ---------------------------------------------------------------------------
+# =============================================================================
+# TITLE SCORING
+# =============================================================================
 
 def score_title_fit(
     job: Dict[str, Any],
     profile: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
-    Optional debugging / ranking helper.
+    Score and explain title fit.
 
-    Existing workflow code does not need to call this.
+    IMPORTANT:
 
-    Example output:
+    A role must normally satisfy BOTH:
 
-        {
-            "passes": True,
-            "score": 10,
-            "threshold": 7,
-            "location_pass": True,
-            "reasons": [
-                "executive seniority",
-                "core function: account management"
-            ],
-            "hard_exclude": False,
-            "hard_exclude_matches": []
-        }
+        1. Seniority
+        2. Target function
+
+    before it can pass.
+
+    This fixes the issue where a score threshold of 6 could otherwise allow
+    a junior "Customer Success Manager" simply because the functional phrase
+    itself scored highly.
+
+    Base score:
+
+        seniority match        +3
+        target-function match  +3
+
+    Therefore a normal valid role reaches the profile threshold of 6.
+
+    Additional points rank stronger roles higher but are not required to pass.
     """
 
     profile = profile or {}
 
     title = (
-        job.get('job_title') or ''
+        job.get('job_title')
+        or job.get('title')
+        or ''
     ).strip()
 
     loc = (
-        job.get('location_raw') or ''
+        job.get('location_raw')
+        or job.get('location')
+        or ''
     ).strip()
 
-    location_mode = (
-        profile.get('location') or ''
-    ).strip().lower() or 'us only'
+    normalized_title = _normalize_text(title)
+
+    (
+        location_mode,
+        seniority_terms,
+        target_terms,
+        exclude_terms,
+    ) = _build_filter_lists(profile)
+
+    threshold = _get_score_threshold(profile)
+
+    # ---------------------------------------------------------------------
+    # Location
+    # ---------------------------------------------------------------------
 
     location_pass = _location_ok(
         loc,
         location_mode
     )
 
-    details = _title_fit_details(
-        title,
-        profile
+    # ---------------------------------------------------------------------
+    # Empty title
+    # ---------------------------------------------------------------------
+
+    if not normalized_title:
+        return {
+            'passes': False,
+            'score': 0,
+            'threshold': threshold,
+            'location_pass': location_pass,
+            'seniority_pass': False,
+            'target_pass': False,
+            'exclude_pass': True,
+            'seniority_matches': [],
+            'target_matches': [],
+            'exclude_matches': [],
+            'reasons': ['missing job title'],
+        }
+
+    # ---------------------------------------------------------------------
+    # Hard exclusions
+    # ---------------------------------------------------------------------
+
+    exclude_matches = _phrase_matches(
+        normalized_title,
+        exclude_terms
     )
 
-    try:
-        threshold = int(
-            profile.get(
-                'title_score_threshold',
-                7
+    if exclude_matches:
+        return {
+            'passes': False,
+            'score': -100,
+            'threshold': threshold,
+            'location_pass': location_pass,
+            'seniority_pass': False,
+            'target_pass': False,
+            'exclude_pass': False,
+            'seniority_matches': [],
+            'target_matches': [],
+            'exclude_matches': exclude_matches,
+            'reasons': [
+                f"excluded title signal: {exclude_matches[0]}"
+            ],
+        }
+
+    # ---------------------------------------------------------------------
+    # Seniority
+    # ---------------------------------------------------------------------
+
+    seniority_matches = _phrase_matches(
+        normalized_title,
+        seniority_terms
+    )
+
+    explicit_seniority = bool(
+        seniority_matches
+    )
+
+    senior_ic = _is_senior_ic_title(
+        normalized_title
+    )
+
+    seniority_pass = (
+        explicit_seniority
+        or senior_ic
+    )
+
+    # ---------------------------------------------------------------------
+    # Target function
+    # ---------------------------------------------------------------------
+
+    target_matches = _phrase_matches(
+        normalized_title,
+        target_terms
+    )
+
+    target_pass = bool(
+        target_matches
+    )
+
+    # ---------------------------------------------------------------------
+    # Score
+    # ---------------------------------------------------------------------
+
+    score = 0
+    reasons = []
+
+    if seniority_pass:
+        score += 3
+
+        if explicit_seniority:
+            reasons.append(
+                f"seniority: {seniority_matches[0]}"
             )
+
+        else:
+            reasons.append(
+                'seniority: approved senior strategic IC title'
+            )
+
+    if target_pass:
+        score += 3
+
+        reasons.append(
+            f"target function: {target_matches[0]}"
         )
-    except (TypeError, ValueError):
-        threshold = 7
+
+    # Clear executive title.
+    exec_bonus = _executive_level_bonus(
+        normalized_title
+    )
+
+    if exec_bonus:
+        score += exec_bonus
+
+        reasons.append(
+            'executive-level title'
+        )
+
+    # Strongest career-lane matches.
+    high_priority_matches = _phrase_matches(
+        normalized_title,
+        _HIGH_PRIORITY_TARGETS
+    )
+
+    if high_priority_matches:
+        score += 1
+
+        reasons.append(
+            f"high-priority lane: {high_priority_matches[0]}"
+        )
+
+    # Multiple distinct relevant signals are meaningful.
+    if len(target_matches) >= 2:
+        score += 1
+
+        reasons.append(
+            'multiple target-function signals'
+        )
+
+    # Cap title-fit score at 10 for easier downstream interpretation.
+    score = min(
+        score,
+        10
+    )
+
+    # ---------------------------------------------------------------------
+    # PASS / FAIL
+    # ---------------------------------------------------------------------
+
+    #
+    # The gates matter more than raw score:
+    #
+    #   - senior enough
+    #   - relevant function
+    #   - right geography
+    #   - not explicitly excluded
+    #
+    # Then threshold is applied.
+    #
+
+    passes = (
+        location_pass
+        and seniority_pass
+        and target_pass
+        and score >= threshold
+    )
+
+    if not location_pass:
+        reasons.append(
+            'location failed'
+        )
+
+    if not seniority_pass:
+        reasons.append(
+            'no seniority signal'
+        )
+
+    if not target_pass:
+        reasons.append(
+            'no target-function signal'
+        )
+
+    if score < threshold:
+        reasons.append(
+            f"score below threshold ({score} < {threshold})"
+        )
 
     return {
-
-        'passes': (
-            location_pass
-            and not details['hard_exclude']
-            and details['score'] >= threshold
-        ),
-
-        'score': details['score'],
-
+        'passes': passes,
+        'score': score,
         'threshold': threshold,
 
         'location_pass': location_pass,
 
-        'reasons': details['reasons'],
+        'seniority_pass': seniority_pass,
+        'target_pass': target_pass,
+        'exclude_pass': True,
 
-        'hard_exclude': details['hard_exclude'],
+        'seniority_matches': seniority_matches,
+        'target_matches': target_matches,
+        'exclude_matches': [],
 
-        'hard_exclude_matches':
-            details['hard_exclude_matches'],
+        'reasons': reasons,
     }
 
 
-# ---------------------------------------------------------------------------
-# Freshness
-# ---------------------------------------------------------------------------
+# =============================================================================
+# PRIMARY DROP-IN TITLE FILTER
+# =============================================================================
+
+def passes_title_filter(
+    job: Dict[str, Any],
+    profile: Dict[str, Any] = None
+) -> bool:
+    """
+    Drop-in replacement for the original filter.
+
+    A job passes only when it:
+
+        1. passes location rules
+        2. is senior enough
+        3. contains an approved target-function signal
+        4. contains no hard exclusion
+        5. reaches the configured score threshold
+
+    This protects against both:
+
+        FALSE POSITIVES
+            Customer Success Manager
+            VP Sales
+            Director Corporate Strategy
+            VP Revenue Operations
+            Enterprise Account Executive
+
+        FALSE NEGATIVES
+            Strategic Client Partner
+            Executive Customer Success Leader
+            Enterprise AM Lead
+            VP Sales - Account Management
+            Head of Accounting & Advisory Partnerships
+    """
+
+    return score_title_fit(
+        job,
+        profile
+    )['passes']
+
+
+# =============================================================================
+# AGE / FRESHNESS
+# =============================================================================
 
 def is_too_old(
     job: Dict[str, Any],
     days: int = 45
 ) -> bool:
     """
-    Senior roles often remain open longer than 30 days.
+    Executive jobs often remain open longer than standard IC roles.
 
-    Default cutoff has therefore been moved to 45 days.
+    Default age cutoff is therefore 45 days rather than 30.
 
-    Missing or malformed dates fail open so a potentially good role
-    is not silently discarded.
+    Missing or malformed dates fail open so a strong role is not silently
+    discarded because the ATS supplied poor metadata.
     """
 
     date_str = (
-        job.get('date_posted') or ''
+        job.get('date_posted')
+        or job.get('posted_at')
+        or ''
+    )
+
+    date_str = str(
+        date_str
     )[:10]
 
     if not date_str:
         return False
 
     try:
-
         posted_date = datetime.strptime(
             date_str,
             '%Y-%m-%d'
@@ -1089,57 +1346,5 @@ def is_too_old(
 
         return posted_date < cutoff_date
 
-    except ValueError:
+    except (ValueError, TypeError):
         return False
-
-
-# ---------------------------------------------------------------------------
-# Primary drop-in filter
-# ---------------------------------------------------------------------------
-
-def passes_title_filter(
-    job: Dict[str, Any],
-    profile: Dict[str, Any] = None
-) -> bool:
-    """
-    Drop-in replacement for the original boolean filter.
-
-    Default priority:
-
-        1. Customer Success / Customer Experience leadership
-
-        2. Strategic / Enterprise Account Management
-
-        3. Customer Growth / Post-Sales / Value Realization
-
-        4. Senior Client Partner / strategic IC roles
-
-        5. AI / Digital / Enterprise Transformation
-
-        6. Partnerships / Alliances
-
-        7. Professional Services / Strategy Consulting
-
-        8. General Manager / Business Unit leadership
-
-        9. Selected Strategic Programs
-
-    Generic words such as:
-
-        strategy
-        strategic
-        enterprise
-        operations
-        sales
-        revenue
-        growth
-        market
-        commercial
-
-    no longer qualify a job by themselves.
-    """
-
-    return score_title_fit(
-        job,
-        profile
-    )['passes']
