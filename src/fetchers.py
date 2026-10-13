@@ -129,9 +129,11 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
     # slower per-company but correct on every tenant.
     listings = []
     offset, limit = 0, 20
+    first_total = None
+    session = requests.Session()  # keeps cookies across pages
     while True:
         try:
-            resp = requests.post(
+            resp = session.post(
                 f'{api}/jobs',
                 json={'limit': limit, 'offset': offset, 'searchText': '', 'appliedFacets': {}},
                 headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'},
@@ -148,11 +150,18 @@ def fetch_workday(handle: str, company_name: str, seniority_keywords: list = Non
             break
 
         listings.extend(batch)
-        total = data.get('total', 0)
+        # Workday only reliably reports 'total' on the FIRST page. On large
+        # boards (confirmed on NVIDIA and Salesforce) later pages come back
+        # with total=0 while still returning real postings, which used to trip
+        # the exit check below after just 20 postings. Trust page 1's total.
+        if first_total is None:
+            first_total = data.get('total', 0) or 0
         offset += limit
-        if offset >= total or offset >= 400:  # raised cap since we're no longer pre-filtered
+        if offset >= first_total or offset >= 2000:
             break
         time.sleep(0.3)
+
+    print(f'    Workday scanned {len(listings)} of {first_total or 0} postings (Fetched below = seniority-title matches only)')
 
     # Client-side keyword filter on title (mirrors old searchText intent)
     filtered = [
